@@ -1,4 +1,4 @@
-import type { Config } from 'tailwindcss';
+import type {Config} from 'tailwindcss';
 
 const config: Config = {
     content: [
@@ -10,7 +10,8 @@ const config: Config = {
         extend: {
             colors: {
                 primary: '#7F56D9',
-                borderColor: '#EAECF0',
+                borderColorPrimary: '#D0D5DD',
+                borderColorSecondary: '#EAECF0',
                 labelColor: '#101828',
                 urlColor: '#475467',
                 buttonText: '#344054',
@@ -43,6 +44,7 @@ const config: Config = {
                 heading: '600',
             },
             backgroundColor: {
+                mainBackground: '#F5F5F5',
                 cardBackground: '#F9FAFB',
             },
             margin: {

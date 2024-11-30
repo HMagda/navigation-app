@@ -1,3 +1,4 @@
+// added drag and drop functionality to subelements
 'use client';
 
 import React, {useState} from 'react';
@@ -10,6 +11,7 @@ interface NavigationItem {
     id: string;
     label: string;
     url?: string;
+    parentId: string | null;
     children?: NavigationItem[];
 }
 
@@ -21,52 +23,70 @@ export default function Home() {
     );
     const [isFormVisible, setFormVisible] = useState(false);
 
-    const handleAddOrEditItem = (data: Omit<NavigationItem, 'id'>) => {
+    const handleAddOrEditItem = (
+        data: Omit<NavigationItem, 'id' | 'parentId'>
+    ) => {
         if (editingItem) {
-            const updateItemById = (items: NavigationItem[], id: string): NavigationItem[] => {
-                return items.map(item => {
+            const updateItemById = (
+                items: NavigationItem[],
+                id: string
+            ): NavigationItem[] => {
+                return items.map((item) => {
                     if (item.id === id) {
-                        return { ...item, ...data };
+                        return {...item, ...data};
                     } else if (item.children) {
-                        return { ...item, children: updateItemById(item.children, id) };
+                        return {
+                            ...item,
+                            children: updateItemById(item.children, id),
+                        };
                     } else {
                         return item;
                     }
                 });
             };
-    
-            setItems(prevItems => updateItemById(prevItems, editingItem.id));
+
+            setItems((prevItems) => updateItemById(prevItems, editingItem.id));
             setEditingItem(null);
         } else if (parentForSubmenu) {
-            setItems((prevItems) => {
-                const addSubmenu = (node: NavigationItem): NavigationItem => {
-                    if (node.id === parentForSubmenu) {
+            const newItem: NavigationItem = {
+                id: uuidv4(),
+                parentId: parentForSubmenu,
+                ...data,
+            };
+
+            const addSubmenu = (items: NavigationItem[]): NavigationItem[] => {
+                return items.map((item) => {
+                    if (item.id === parentForSubmenu) {
                         return {
-                            ...node,
-                            children: [
-                                ...(node.children || []),
-                                {id: uuidv4(), ...data},
-                            ],
+                            ...item,
+                            children: [...(item.children || []), newItem],
                         };
+                    } else if (item.children) {
+                        return {
+                            ...item,
+                            children: addSubmenu(item.children),
+                        };
+                    } else {
+                        return item;
                     }
-                    return {
-                        ...node,
-                        children: node.children
-                            ? node.children.map(addSubmenu)
-                            : [],
-                    };
-                };
-                return prevItems.map(addSubmenu);
-            });
+                });
+            };
+
+            setItems((prevItems) => addSubmenu(prevItems));
             setParentForSubmenu(null);
         } else {
-            setItems([...items, {id: uuidv4(), ...data}]);
+            const newItem: NavigationItem = {
+                id: uuidv4(),
+                parentId: null,
+                ...data,
+            };
+            setItems([...items, newItem]);
         }
         setFormVisible(false);
     };
 
     const handleDeleteItem = (id: string) => {
-        const deleteRecursive = (items: NavigationItem[]) =>
+        const deleteRecursive = (items: NavigationItem[]): NavigationItem[] =>
             items.filter((item) => {
                 if (item.id === id) return false;
                 if (item.children)
@@ -74,6 +94,10 @@ export default function Home() {
                 return true;
             });
         setItems(deleteRecursive(items));
+    };
+
+    const handleReorder = (reorderedItems: NavigationItem[]) => {
+        setItems(reorderedItems);
     };
 
     const handleShowForm = (item?: NavigationItem, parentId?: string) => {
@@ -91,7 +115,7 @@ export default function Home() {
     const getForm = (id?: string) => {
         let viewForm = false;
 
-        if(editingItem) {
+        if (editingItem) {
             if (editingItem.id === id) {
                 viewForm = true;
             }
@@ -103,25 +127,27 @@ export default function Home() {
             viewForm = true;
         }
 
-        return viewForm && isFormVisible && (
-            <div className='p-4 bg-[#F9FAFB]'>
-            <Form
-      
-                defaultValues={editingItem || undefined}
-                onSubmit={handleAddOrEditItem}
-                onCancel={() => {
-                    setEditingItem(null);
-                    setParentForSubmenu(null);
-                    setFormVisible(false);
-                }}
-            />
-            </div>
-        )
-    }
+        return (
+            viewForm &&
+            isFormVisible && (
+                <div className='p-4 bg-cardBackground'>
+                    <Form
+                        defaultValues={editingItem || undefined}
+                        onSubmit={handleAddOrEditItem}
+                        onCancel={() => {
+                            setEditingItem(null);
+                            setParentForSubmenu(null);
+                            setFormVisible(false);
+                        }}
+                    />
+                </div>
+            )
+        );
+    };
 
     return (
         <div className='flex items-center justify-center min-h-screen'>
-            <div className='border border-borderColor rounded-default bg-[#EAECF0] w-[1168px]'>
+            <div className='border border-borderColorSecondary rounded-default bg-cardBackground w-[1168px]'>
                 {/* When the list is empty */}
                 {items.length === 0 &&
                     (!isFormVisible ? (
@@ -134,7 +160,7 @@ export default function Home() {
                             </p>
                             <button
                                 onClick={() => handleShowForm()}
-                                className='flex items-center bg-primary text-white px-buttonPaddingX py-buttonPaddingY rounded-default hover:bg-purple-600'
+                                className='flex items-center bg-primary text-white px-buttonPaddingX py-buttonPaddingY rounded-default hover:secondaryText'
                             >
                                 <Image
                                     src='/icons/plus-circle.svg'
@@ -147,7 +173,6 @@ export default function Home() {
                             </button>
                         </div>
                     ) : (
-                        // Display the form without extra padding
                         <Form
                             defaultValues={editingItem || undefined}
                             onSubmit={handleAddOrEditItem}
@@ -159,7 +184,6 @@ export default function Home() {
                         />
                     ))}
 
-                {/* When the list has items */}
                 {items.length > 0 && (
                     <>
                         <NavigationList
@@ -170,14 +194,15 @@ export default function Home() {
                                 handleShowForm(undefined, parentId)
                             }
                             form={getForm}
+                            onReorder={handleReorder}
                         />
 
                         {getForm()}
 
-                        <div className='flex justify-start items-center border border-borderColor rounded-lg p-4 h-[80px]'>
+                        <div className='flex justify-start items-center border border-borderColorSecondary rounded-lg p-4 h-[80px] bg-mainBackground'>
                             <button
                                 onClick={() => handleShowForm()}
-                                className='flex justify-center items-center text-sm font-semibold text-buttonText hover:underline bg-white rounded-lg h-buttonHeight w-[169px]'
+                                className='flex justify-center items-center border border-borderColorPrimary text-sm font-semibold text-buttonText hover:underline bg-white rounded-lg h-buttonHeight w-[169px]'
                             >
                                 Dodaj pozycję menu
                             </button>
