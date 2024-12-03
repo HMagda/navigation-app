@@ -17,6 +17,7 @@ const config: Config = {
                 buttonText: '#344054',
                 buttonBorder: '#D6BBFB',
                 secondaryText: '#6941C6',
+                placeholderText: '#667085',
             },
             fontFamily: {
                 inter: ['Inter', 'sans-serif'],
